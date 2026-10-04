@@ -50,7 +50,7 @@ The **AI Customer Support System** automates first-line customer assistance:
             │ HTTP POST /ask
             ▼
     ┌───────────────┐
-    │ FastAPI API   │ (Port 8000)
+    │ FastAPI API   │ (Port 8001)
     └───────┬───────┘
             │
     ┌───────┴───────────────────────────────┐
@@ -227,8 +227,8 @@ LLM_API_KEY=your_gemini_api_key_here
 LLM_MODEL=gemini-1.5-flash
 
 BACKEND_HOST=127.0.0.1
-BACKEND_PORT=8000
-BACKEND_URL=http://127.0.0.1:8000
+BACKEND_PORT=8001
+BACKEND_URL=http://127.0.0.1:8001
 ```
 *(Note: If you do not have a Gemini API key yet, the application will automatically run in local offline demo mode with local embeddings!)*
 
@@ -253,10 +253,10 @@ Open two terminal tabs:
 ### Terminal 1: Start FastAPI Backend
 ```bash
 .\venv\Scripts\activate
-uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+uvicorn app.main:app --host 127.0.0.1 --port 8001 --reload
 ```
-- Interactive API Documentation (Swagger UI): **http://127.0.0.1:8000/docs**
-- Health Endpoint: **http://127.0.0.1:8000/health**
+- Interactive API Documentation (Swagger UI): **http://127.0.0.1:8001/docs**
+- Health Endpoint: **http://127.0.0.1:8001/health**
 
 ### Terminal 2: Start Streamlit Frontend
 ```bash

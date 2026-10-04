@@ -41,8 +41,8 @@ class Settings:
 
     # Backend Host Configuration
     BACKEND_HOST: str = os.getenv("BACKEND_HOST", "127.0.0.1")
-    BACKEND_PORT: int = int(os.getenv("BACKEND_PORT", 8000))
-    BACKEND_URL: str = os.getenv("BACKEND_URL", "http://127.0.0.1:8000")
+    BACKEND_PORT: int = int(os.getenv("BACKEND_PORT", 8001))
+    BACKEND_URL: str = os.getenv("BACKEND_URL", "http://127.0.0.1:8001")
 
 
 settings = Settings()

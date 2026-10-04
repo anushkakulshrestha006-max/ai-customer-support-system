@@ -3,11 +3,16 @@ AI Customer Support System - Streamlit Web Interface
 Connects to FastAPI backend to demonstrate RAG, Intent Classification, MySQL Logging, and Support Ticket Escalation.
 """
 import os
+from pathlib import Path
 import requests
 import streamlit as st
+from dotenv import load_dotenv
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(dotenv_path=BASE_DIR / ".env")
 
 # Configuration
-BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8000")
+BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8001")
 
 # Page layout configuration
 st.set_page_config(
@@ -92,7 +97,7 @@ if is_online:
         st.sidebar.info("💡 Note: Running in local demo mode. Add LLM_API_KEY to .env for live Gemini generation.")
 else:
     st.sidebar.error("● Backend: Offline (Cannot reach FastAPI)")
-    st.sidebar.caption("Run: `uvicorn app.main:app --reload`")
+    st.sidebar.caption("Run: `uvicorn app.main:app --port 8001`")
 
 st.sidebar.divider()
 

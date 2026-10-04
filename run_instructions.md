@@ -34,10 +34,10 @@ You will run the backend and frontend in two separate terminal windows:
 
 ### Terminal 1 - FastAPI Backend:
 ```powershell
-.\venv\Scripts\uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+.\venv\Scripts\uvicorn app.main:app --host 127.0.0.1 --port 8001 --reload
 ```
-- API Docs: **http://127.0.0.1:8000/docs**
-- Health check: **http://127.0.0.1:8000/health**
+- API Docs: **http://127.0.0.1:8001/docs**
+- Health check: **http://127.0.0.1:8001/health**
 
 ### Terminal 2 - Streamlit Frontend:
 ```powershell
