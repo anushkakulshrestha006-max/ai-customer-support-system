@@ -6,7 +6,10 @@ from typing import List, Optional
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from app.database import crud
-from app.schemas.ticket import TicketCreate, TicketResponse
+from app.schemas.ticket import TicketCreate, TicketResponse, TicketStatusUpdate
+
+ALLOWED_STATUSES = ["Open", "In Progress", "Resolved", "Closed"]
+
 
 
 def create_support_ticket(ticket_data: TicketCreate, db: Session) -> TicketResponse:
@@ -69,3 +72,31 @@ def get_single_ticket(ticket_id: int, db: Session) -> TicketResponse:
     if ticket.customer:
         resp.customer_name = ticket.customer.name
     return resp
+
+
+def update_ticket_status(ticket_id: int, status_update: TicketStatusUpdate, db: Session) -> TicketResponse:
+    """Validates status and updates the ticket in MySQL."""
+    normalized_status = None
+    for allowed in ALLOWED_STATUSES:
+        if status_update.status.strip().lower() == allowed.lower():
+            normalized_status = allowed
+            break
+
+    if not normalized_status:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid status '{status_update.status}'. Allowed statuses: {', '.join(ALLOWED_STATUSES)}.",
+        )
+
+    ticket = crud.update_ticket_status(db, ticket_id=ticket_id, status=normalized_status)
+    if not ticket:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Support ticket #{ticket_id} not found.",
+        )
+
+    resp = TicketResponse.model_validate(ticket)
+    if ticket.customer:
+        resp.customer_name = ticket.customer.name
+    return resp
+

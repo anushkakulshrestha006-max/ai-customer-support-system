@@ -68,3 +68,25 @@ def test_create_and_retrieve_conversation(db_session):
     history = crud.get_conversations(db_session, customer_id=customer.id, limit=5)
     assert len(history) > 0
     assert any(c.id == conv.id for c in history)
+
+
+def test_update_ticket_status_crud(db_session):
+    """Test 5: Verify updating ticket status via CRUD function."""
+    customer = crud.get_customers(db_session, limit=1)[0]
+    ticket = crud.create_ticket(
+        db=db_session,
+        customer_id=customer.id,
+        issue="Test status update CRUD",
+        category="Refund",
+        status="Open",
+    )
+    assert ticket.status == "Open"
+
+    updated = crud.update_ticket_status(db_session, ticket.id, "Resolved")
+    assert updated is not None
+    assert updated.status == "Resolved"
+
+    # Verify query
+    fetched = crud.get_ticket_by_id(db_session, ticket.id)
+    assert fetched.status == "Resolved"
+

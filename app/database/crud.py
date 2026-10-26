@@ -59,6 +59,11 @@ def get_conversations(db: Session, customer_id: Optional[int] = None, limit: int
     return query.order_by(Conversation.created_at.desc()).limit(limit).all()
 
 
+def get_conversation_by_id(db: Session, conversation_id: int) -> Optional[Conversation]:
+    """Retrieve a single conversation by its primary key ID."""
+    return db.query(Conversation).filter(Conversation.id == conversation_id).first()
+
+
 # ==========================================
 # TICKET CRUD OPERATIONS
 # ==========================================
@@ -97,3 +102,14 @@ def get_tickets(db: Session, customer_id: Optional[int] = None, limit: int = 50)
 def get_ticket_by_id(db: Session, ticket_id: int) -> Optional[Ticket]:
     """Retrieve a specific ticket by ID."""
     return db.query(Ticket).filter(Ticket.id == ticket_id).first()
+
+
+def update_ticket_status(db: Session, ticket_id: int, status: str) -> Optional[Ticket]:
+    """Update status of a specific ticket."""
+    ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
+    if ticket:
+        ticket.status = status
+        db.commit()
+        db.refresh(ticket)
+    return ticket
+

@@ -48,5 +48,8 @@ class ConversationResponse(BaseModel):
     question: str
     answer: str
     created_at: datetime
+    sources: List[str] = Field(default_factory=list, description="Policy sources referenced")
+    is_demo: bool = Field(default=False, description="Whether generated in demo mode")
+    is_test: bool = Field(default=False, description="Whether identified as test fixture record")
 
     model_config = ConfigDict(from_attributes=True)

@@ -5,8 +5,9 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 from app.database.connection import get_db
-from app.schemas.ticket import TicketCreate, TicketResponse
+from app.schemas.ticket import TicketCreate, TicketResponse, TicketStatusUpdate
 from app.services import ticket_service
+
 
 router = APIRouter(prefix="/tickets", tags=["Tickets"])
 
@@ -56,3 +57,21 @@ def get_ticket(
     Retrieves a single support ticket by its ID.
     """
     return ticket_service.get_single_ticket(ticket_id=ticket_id, db=db)
+
+
+@router.patch(
+    "/{ticket_id}/status",
+    response_model=TicketResponse,
+    summary="Update support ticket status",
+)
+def update_ticket_status(
+    ticket_id: int,
+    status_update: TicketStatusUpdate,
+    db: Session = Depends(get_db),
+):
+    """
+    Updates the status of an existing support ticket.
+    Allowed statuses: Open, In Progress, Resolved, Closed.
+    """
+    return ticket_service.update_ticket_status(ticket_id=ticket_id, status_update=status_update, db=db)
+

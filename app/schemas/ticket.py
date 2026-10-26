@@ -19,3 +19,8 @@ class TicketResponse(BaseModel):
     customer_name: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class TicketStatusUpdate(BaseModel):
+    status: str = Field(..., description="Allowed statuses: Open, In Progress, Resolved, Closed")
+

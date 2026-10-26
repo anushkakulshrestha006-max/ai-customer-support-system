@@ -67,3 +67,39 @@ def test_rag_answer_generation():
     assert len(answer) > 10
     assert len(sources) > 0
     assert "cancellation_policy.md" in sources
+
+
+def test_rag_example_questions():
+    """Test 7: Verify all 4 UI quick example questions produce expected categories and sources."""
+    examples = [
+        ("How long does standard delivery take?", "Delivery", "delivery_policy.md"),
+        ("What is your refund policy?", "Refund", "refund_policy.md"),
+        ("How can I cancel an order?", "Cancellation", "cancellation_policy.md"),
+        ("What payment methods are supported?", "Payment", "payment_policy.md"),
+    ]
+    for question, expected_cat, expected_source in examples:
+        cat, answer, sources = answer_customer_question(question)
+        assert cat == expected_cat
+        assert expected_source in sources
+        assert len(answer) > 20
+
+
+def test_demo_mode_answer_quality():
+    """Test 8: Verify answer contains policy-grounded guidance without technical warnings."""
+    cat, answer, sources = answer_customer_question("How long does standard delivery take?")
+    # Must NOT contain raw technical demo tags or filenames in the text
+    assert "[Demo Mode" not in answer
+    assert "LLM_API_KEY" not in answer
+    assert "delivery_policy.md" not in answer
+    # Must contain actual policy facts
+    assert "3 to 5 business days" in answer or "Standard Shipping" in answer
+
+
+def test_unsupported_question_handling():
+    """Test 9: Verify polite response when question is outside store policy scope."""
+    cat, answer, sources = answer_customer_question("Do you sell live tigers in France?")
+    assert cat == "Other"
+    assert "not available in our current store policies" in answer.lower()
+    assert "support ticket" in answer.lower()
+
+

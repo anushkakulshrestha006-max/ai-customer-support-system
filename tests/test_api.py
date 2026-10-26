@@ -112,3 +112,49 @@ def test_get_conversations():
     convs = response.json()
     assert isinstance(convs, list)
     assert len(convs) >= 1
+
+
+def test_update_ticket_status_valid():
+    """Test 9: Verify ticket status can be updated to valid states."""
+    cust_res = client.get("/customers")
+    cust_id = cust_res.json()[0]["id"]
+
+    # Create ticket
+    create_res = client.post(
+        "/tickets",
+        json={"customer_id": cust_id, "issue": "Testing status transition workflow", "category": "Delivery"},
+    )
+    assert create_res.status_code == 201
+    ticket_id = create_res.json()["id"]
+
+    # Transition to In Progress
+    patch_res = client.patch(f"/tickets/{ticket_id}/status", json={"status": "In Progress"})
+    assert patch_res.status_code == 200
+    assert patch_res.json()["status"] == "In Progress"
+
+    # Transition to Resolved
+    patch_res2 = client.patch(f"/tickets/{ticket_id}/status", json={"status": "Resolved"})
+    assert patch_res2.status_code == 200
+    assert patch_res2.json()["status"] == "Resolved"
+
+
+def test_update_ticket_status_invalid_status():
+    """Test 10: Verify 400 error when providing an unsupported status."""
+    cust_res = client.get("/customers")
+    cust_id = cust_res.json()[0]["id"]
+    create_res = client.post(
+        "/tickets",
+        json={"customer_id": cust_id, "issue": "Testing invalid status rejection", "category": "Other"},
+    )
+    ticket_id = create_res.json()["id"]
+
+    bad_res = client.patch(f"/tickets/{ticket_id}/status", json={"status": "InvalidStatusXYZ"})
+    assert bad_res.status_code == 400
+    assert "Invalid status" in bad_res.json()["detail"]
+
+
+def test_update_ticket_status_not_found():
+    """Test 11: Verify 404 error when ticket ID does not exist."""
+    res = client.patch("/tickets/999999/status", json={"status": "Closed"})
+    assert res.status_code == 404
+
