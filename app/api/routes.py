@@ -1,12 +1,9 @@
-"""
-Primary API routes: root, health checks, customer management, and RAG inquiry endpoint.
-"""
 from typing import List
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from app.config import settings
-from app.database.connection import get_db
+from app.database.connection import get_db, engine
 from app.database import crud
 from app.schemas.support import AskRequest, AskResponse, CustomerResponse, CustomerCreate
 from app.services import support_service
@@ -20,35 +17,83 @@ def root():
     return {
         "project": settings.PROJECT_NAME,
         "version": settings.VERSION,
+        "environment": settings.ENVIRONMENT,
         "documentation": "/docs",
         "status": "online",
     }
 
 
 @router.get("/health", summary="System health check")
-def health_check(db: Session = Depends(get_db)):
+def health_check():
     """
     Verifies that FastAPI is running, MySQL connection is healthy,
     and FAISS vector index is accessible.
+    Sanitizes status to avoid disclosing credentials or internal connection strings.
     """
     # 1. Check database connectivity
     try:
-        db.execute(text("SELECT 1;"))
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1;"))
         db_status = "healthy"
-    except Exception as e:
-        db_status = f"unhealthy: {str(e)}"
+    except Exception:
+        db_status = "unhealthy"
 
     # 2. Check vector store existence
-    index_exists = (settings.FAISS_INDEX_DIR / "index.faiss").exists()
-    vector_status = "ready" if index_exists else "not_built"
+    index_faiss = settings.FAISS_INDEX_DIR / "index.faiss"
+    index_pkl = settings.FAISS_INDEX_DIR / "index.pkl"
+    vector_status = "ready" if (index_faiss.exists() and index_pkl.exists()) else "not_built"
 
     return {
-        "status": "healthy" if db_status == "healthy" else "degraded",
+        "status": "healthy" if (db_status == "healthy" and vector_status == "ready") else "degraded",
         "database": db_status,
         "vector_store": vector_status,
         "llm_model": settings.LLM_MODEL,
         "api_key_configured": bool(settings.LLM_API_KEY and settings.LLM_API_KEY != "your_gemini_api_key_here"),
+        "environment": settings.ENVIRONMENT,
     }
+
+
+@router.get("/health/live", summary="Liveness probe")
+def liveness_check():
+    """
+    Confirms that the FastAPI process is alive and receiving HTTP traffic.
+    Suitable for container orchestrator and cloud platform liveness checks.
+    """
+    return {
+        "status": "alive",
+        "project": settings.PROJECT_NAME,
+        "version": settings.VERSION,
+    }
+
+
+@router.get("/health/ready", summary="Readiness probe")
+def readiness_check(response: Response):
+    """
+    Confirms that dependencies required to serve requests (MySQL and FAISS) are ready.
+    Returns HTTP 200 when operational, or HTTP 503 when degraded.
+    """
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1;"))
+        db_status = "healthy"
+    except Exception:
+        db_status = "unhealthy"
+
+    index_faiss = settings.FAISS_INDEX_DIR / "index.faiss"
+    index_pkl = settings.FAISS_INDEX_DIR / "index.pkl"
+    vector_status = "ready" if (index_faiss.exists() and index_pkl.exists()) else "not_built"
+
+    is_ready = (db_status == "healthy") and (vector_status == "ready")
+    if not is_ready:
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+
+    return {
+        "status": "ready" if is_ready else "not_ready",
+        "database": db_status,
+        "vector_store": vector_status,
+        "environment": settings.ENVIRONMENT,
+    }
+
 
 
 @router.get(

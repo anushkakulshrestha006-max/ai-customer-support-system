@@ -47,24 +47,36 @@ def build_and_save_vector_store(
 def load_vector_store(index_path: Optional[Path] = None) -> FAISS:
     """
     Loads an existing FAISS vector store from disk.
-    If the index does not exist, automatically builds it first.
+    If the index or pickle file does not exist, or fails to load,
+    automatically builds it from the knowledge base documents.
     """
     if index_path is None:
         index_path = settings.FAISS_INDEX_DIR
 
-    index_file = index_path / "index.faiss"
-    if not index_file.exists():
-        print(f"FAISS index not found at {index_path}. Building now...")
+    index_faiss = index_path / "index.faiss"
+    index_pkl = index_path / "index.pkl"
+
+    if not index_faiss.exists() or not index_pkl.exists():
+        print(f"FAISS index files not found at {index_path}. Building now from knowledge base...")
         return build_and_save_vector_store(index_path=index_path)
 
     embeddings = get_embedding_function()
-    # allow_dangerous_deserialization=True is required by LangChain for local trusted pickle files
-    vector_store = FAISS.load_local(
-        str(index_path),
-        embeddings,
-        allow_dangerous_deserialization=True,
-    )
-    return vector_store
+    try:
+        # allow_dangerous_deserialization=True is required by LangChain for local trusted pickle files
+        vector_store = FAISS.load_local(
+            str(index_path),
+            embeddings,
+            allow_dangerous_deserialization=True,
+        )
+        # Verify index dimension matches the active embedding model dimension
+        test_dim = len(embeddings.embed_query("dimension check"))
+        if vector_store.index.d != test_dim:
+            print(f"Index dimension mismatch (index has {vector_store.index.d}, model produces {test_dim}). Rebuilding...")
+            return build_and_save_vector_store(index_path=index_path)
+        return vector_store
+    except Exception as e:
+        print(f"Warning: Failed to load FAISS index from {index_path} ({e}). Rebuilding from scratch...")
+        return build_and_save_vector_store(index_path=index_path)
 
 
 def search_similar_chunks(
@@ -77,4 +89,9 @@ def search_similar_chunks(
     """
     if vector_store is None:
         vector_store = load_vector_store()
-    return vector_store.similarity_search(query, k=k)
+    try:
+        return vector_store.similarity_search(query, k=k)
+    except Exception as e:
+        print(f"Warning: Vector search failed ({e}). Rebuilding index and retrying...")
+        vector_store = build_and_save_vector_store()
+        return vector_store.similarity_search(query, k=k)

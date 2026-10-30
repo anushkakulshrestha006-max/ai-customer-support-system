@@ -24,8 +24,21 @@ from app.services.response_formatter import (
     SOURCE_TITLE_MAP,
 )
 
-# Configuration
-BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8001")
+# Configuration & Cloud Secret Handling
+def _resolve_config_value(key: str, default: str = "") -> str:
+    """Reads setting from Streamlit secrets (for cloud deployments) or environment."""
+    try:
+        if hasattr(st, "secrets") and key in st.secrets:
+            val = str(st.secrets[key]).strip()
+            if val:
+                return val
+    except Exception:
+        pass
+    return os.getenv(key, default).strip()
+
+BACKEND_URL = _resolve_config_value("BACKEND_URL", "http://127.0.0.1:8001").rstrip("/")
+ADMIN_API_KEY = _resolve_config_value("ADMIN_API_KEY", "")
+
 
 # Page layout configuration
 st.set_page_config(
@@ -239,12 +252,13 @@ st.markdown(
 def check_backend_health():
     """Checks if FastAPI backend is reachable and reports health metrics."""
     try:
-        res = requests.get(f"{BACKEND_URL}/health", timeout=3)
+        res = requests.get(f"{BACKEND_URL}/health", timeout=5)
         if res.status_code == 200:
             return True, res.json()
         return False, None
     except Exception:
         return False, None
+
 
 
 def get_customers():
@@ -812,24 +826,41 @@ elif page == "Support Tickets":
                     with col_s2:
                         st.write("")
                         st.write("")
-                        if st.button("Apply Change", type="primary", use_container_width=True):
-                            if new_status == current_status:
-                                st.info(f"Ticket #{chosen_t['id']} is already '{current_status}'.")
-                            else:
-                                try:
-                                    patch_res = requests.patch(
-                                        f"{BACKEND_URL}/tickets/{chosen_t['id']}/status",
-                                        json={"status": new_status},
-                                        timeout=5,
-                                    )
-                                    if patch_res.status_code == 200:
-                                        st.success(f"Ticket #{chosen_t['id']} updated to '{new_status}'.")
-                                        st.rerun()
-                                    else:
-                                        err_detail = patch_res.json().get("detail", patch_res.text)
-                                        st.error(f"Failed to update: {err_detail}")
-                                except Exception as ex:
-                                    st.error(f"Connection error: {ex}")
+                        apply_clicked = st.button("Apply Change", type="primary", use_container_width=True)
+
+                    with st.expander("Admin Authorization (required if enabled in production)", expanded=False):
+                        entered_admin_key = st.text_input(
+                            "Admin Secret Key:",
+                            value="",
+                            type="password",
+                            help="Leave blank if pre-configured in server environment. Enter secret key if backend enforces ADMIN_API_KEY.",
+                            key="admin_secret_key_input",
+                        )
+
+                    if apply_clicked:
+                        if new_status == current_status:
+                            st.info(f"Ticket #{chosen_t['id']} is already '{current_status}'.")
+                        else:
+                            try:
+                                headers = {}
+                                key_to_send = (entered_admin_key.strip() if entered_admin_key else "") or ADMIN_API_KEY
+                                if key_to_send:
+                                    headers["X-Admin-Key"] = key_to_send
+                                patch_res = requests.patch(
+                                    f"{BACKEND_URL}/tickets/{chosen_t['id']}/status",
+                                    json={"status": new_status},
+                                    headers=headers,
+                                    timeout=8,
+                                )
+                                if patch_res.status_code == 200:
+                                    st.success(f"Ticket #{chosen_t['id']} updated to '{new_status}'.")
+                                    st.rerun()
+                                else:
+                                    err_detail = patch_res.json().get("detail", patch_res.text)
+                                    st.error(f"Failed to update: {err_detail}")
+                            except Exception as ex:
+                                st.error(f"Connection error: {ex}")
+
         else:
             st.error(f"Failed to fetch tickets ({res.status_code})")
     except Exception as e:

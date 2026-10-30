@@ -44,9 +44,34 @@ class LocalFallbackEmbeddings(Embeddings):
         return self._embed_single_text(text)
 
 
+class ResilientEmbeddings(Embeddings):
+    """
+    Wraps primary embeddings (Google Generative AI) with fallback to LocalFallbackEmbeddings
+    if remote API calls fail (network errors, quota limits, invalid keys).
+    Ensures vector search and question answering remain operational during transient provider issues.
+    """
+    def __init__(self, primary: Embeddings, fallback: Embeddings):
+        self.primary = primary
+        self.fallback = fallback
+
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        try:
+            return self.primary.embed_documents(texts)
+        except Exception as e:
+            print(f"Notice: Primary embeddings error ({e}). Using offline local fallback.")
+            return self.fallback.embed_documents(texts)
+
+    def embed_query(self, text: str) -> List[float]:
+        try:
+            return self.primary.embed_query(text)
+        except Exception as e:
+            print(f"Notice: Primary embedding query error ({e}). Using offline local fallback.")
+            return self.fallback.embed_query(text)
+
+
 def get_embedding_function() -> Embeddings:
     """
-    Returns GoogleGenerativeAIEmbeddings if LLM_API_KEY is present,
+    Returns ResilientEmbeddings wrapping GoogleGenerativeAIEmbeddings when LLM_API_KEY is present,
     otherwise returns LocalFallbackEmbeddings.
     """
     api_key = settings.LLM_API_KEY.strip() if settings.LLM_API_KEY else ""
@@ -55,10 +80,11 @@ def get_embedding_function() -> Embeddings:
     if api_key and api_key != "your_gemini_api_key_here":
         try:
             from langchain_google_genai import GoogleGenerativeAIEmbeddings
-            return GoogleGenerativeAIEmbeddings(
+            primary = GoogleGenerativeAIEmbeddings(
                 model="models/text-embedding-004",
                 google_api_key=api_key,
             )
+            return ResilientEmbeddings(primary=primary, fallback=LocalFallbackEmbeddings())
         except Exception as e:
             print(f"Warning: Failed to initialize Google Generative AI embeddings ({e}). Falling back to local offline embeddings.")
             return LocalFallbackEmbeddings()

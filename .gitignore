@@ -6,12 +6,21 @@ __pycache__/
 *$py.class
 *.so
 
-# Environment variables
+# Environment variables & secrets
 .env
+.env.*
+!.env.example
+.streamlit/secrets.toml
 
 # Vector index persistence
 data/faiss_index/
 data/chroma/
+
+# Database & log artifacts
+*.log
+*.sqlite
+*.sqlite3
+docker-compose.override.yml
 
 # Testing & Coverage
 .pytest_cache/

@@ -2,14 +2,46 @@
 API endpoints for managing customer support tickets.
 """
 from typing import List, Optional
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from sqlalchemy.orm import Session
+from app.config import settings
 from app.database.connection import get_db
 from app.schemas.ticket import TicketCreate, TicketResponse, TicketStatusUpdate
 from app.services import ticket_service
 
-
 router = APIRouter(prefix="/tickets", tags=["Tickets"])
+
+
+def verify_admin_access(x_admin_key: Optional[str] = Header(None, alias="X-Admin-Key")):
+    """
+    Validates admin credentials for ticket modifications.
+    In production mode, a valid ADMIN_API_KEY is strictly required. Missing or empty keys
+    lock down ticket status changes rather than bypassing authorization.
+    In development mode without an ADMIN_API_KEY configured, allows open demo access.
+    """
+    configured_key = settings.ADMIN_API_KEY.strip()
+
+    if settings.ENVIRONMENT == "production":
+        if not configured_key:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Unauthorized: Admin access is locked because ADMIN_API_KEY is not configured in production.",
+            )
+        if not x_admin_key or x_admin_key.strip() != configured_key:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Unauthorized: Admin access required. Provide a valid 'X-Admin-Key' header.",
+            )
+        return True
+
+    # Development mode: enforce only when an ADMIN_API_KEY is explicitly configured
+    if configured_key:
+        if not x_admin_key or x_admin_key.strip() != configured_key:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Unauthorized: Admin access required. Provide a valid 'X-Admin-Key' header.",
+            )
+    return True
 
 
 @router.post(
@@ -68,10 +100,11 @@ def update_ticket_status(
     ticket_id: int,
     status_update: TicketStatusUpdate,
     db: Session = Depends(get_db),
+    _authorized: bool = Depends(verify_admin_access),
 ):
     """
     Updates the status of an existing support ticket.
     Allowed statuses: Open, In Progress, Resolved, Closed.
+    Protected by X-Admin-Key when ADMIN_API_KEY is configured in production.
     """
     return ticket_service.update_ticket_status(ticket_id=ticket_id, status_update=status_update, db=db)
-

@@ -1,0 +1,44 @@
+# Git
+.git/
+.gitignore
+
+# Virtual environment
+venv/
+.venv/
+ENV/
+
+# Python cache & compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Environment & credentials (NEVER bake secrets into images)
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+
+# Vector index persistence (rebuilt during build or on container start)
+data/faiss_index/
+data/chroma/
+
+# Database files & logs
+*.log
+*.sqlite
+*.sqlite3
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db

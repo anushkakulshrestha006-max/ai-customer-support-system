@@ -28,8 +28,9 @@ class CustomerResponse(CustomerBase):
 # ==========================================
 
 class AskRequest(BaseModel):
-    customer_id: int = Field(..., description="ID of the customer asking the question")
-    question: str = Field(..., min_length=2, description="The customer's support inquiry")
+    customer_id: int = Field(..., ge=1, description="ID of the customer asking the question")
+    question: str = Field(..., min_length=2, max_length=2000, description="The customer's support inquiry")
+
 
 
 class AskResponse(BaseModel):

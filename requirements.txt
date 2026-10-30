@@ -12,7 +12,6 @@ requests>=2.31.0
 langchain>=0.2.0,<0.4.0
 langchain-community>=0.2.0,<0.4.0
 langchain-google-genai>=1.0.0,<3.0.0
-google-generativeai>=0.7.0
 faiss-cpu>=1.7.4
 pytest>=7.0.0
 httpx>=0.25.0

@@ -147,7 +147,10 @@ def classify_intent(question: str) -> str:
                 if cat.lower() in content.lower():
                     return cat
         except Exception as e:
-            print(f"Warning: LLM classification error ({e}). Using heuristic classification.")
+            err_msg = str(e)
+            if api_key and api_key in err_msg:
+                err_msg = err_msg.replace(api_key, "[REDACTED]")
+            print(f"Warning: LLM classification error ({err_msg}). Using heuristic classification.")
 
     return heuristic_category_detection(question)
 
@@ -279,7 +282,10 @@ def answer_customer_question(question: str, top_k: int = 3) -> Tuple[str, str, L
             answer = response.content.strip()
             return category, answer, sources
         except Exception as e:
-            print(f"Warning: Gemini API call failed ({e}). Using local policy answer generator.")
+            err_msg = str(e)
+            if api_key and api_key in err_msg:
+                err_msg = err_msg.replace(api_key, "[REDACTED]")
+            print(f"Warning: Gemini API call failed ({err_msg}). Using local policy answer generator.")
             answer = generate_policy_answer(question, category, ordered_docs)
             return category, answer, sources
 
